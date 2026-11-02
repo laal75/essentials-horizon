@@ -723,7 +723,7 @@ fn nick(game: &mut Game, player: &NativeServerPlayer, name: Option<&str>, ran: &
         game.native_feedback(Text::legacy("a nick is 1 to 16 characters"));
         *ran = true;
         return;
-    };
+    }
     if game
         .native_server_players()
         .iter()
