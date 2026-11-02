@@ -1,0 +1,73 @@
+# Essentials: the usual server commands for a Horizon world — info, quality-of-
+# life actions, homes, warps, teleport requests, nick and back. A horizon-
+# mixins bundle that hooks the server's command points and keeps its data in the
+# world's folder. Off by default: a world that never runs an Essentials command
+# is untouched; the mod creates its data folder the first time one does.
+[mod]
+id = "essentials"
+version = "0.1.0"
+priority = 100
+
+[compatibility]
+horizon_revision = "4aa6854a886183440256f4f4a4a9d1ed853227a1"
+
+# The command logic and the world's data, as a self-contained module in the
+# game (crate::game::essentials), reached by the three small helpers below.
+[[module]]
+id = "runtime"
+file = "crates/horizon-client/src/game.rs"
+name = "essentials"
+source = "runtime.rs"
+
+# The commands a mod adds to every player's command tree, asked once when a
+# world opens to players. Push Essentials' usages.
+[[injection]]
+id = "register"
+target = "horizon_client::game::native_hooks::Game<'_>::native_register_commands"
+kind = "HEAD"
+helper = "register.rs"
+bindings = [
+    { name = "commands", ty = "&mut Vec<NativeCommand>", value = "commands" },
+]
+
+# A player's command on the server, without its slash, for a command a mod
+# registered and the player's level allows: the player's state is swapped in,
+# so the actions act on them and native_feedback answers.
+[[injection]]
+id = "perform"
+target = "horizon_client::game::native_hooks::Game<'_>::native_perform_command"
+kind = "HEAD"
+helper = "perform.rs"
+bindings = [
+    { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+    { name = "player", ty = "&NativeServerPlayer", value = "player" },
+    { name = "command", ty = "&str", value = "command" },
+    { name = "ran", ty = "&mut bool", value = "ran" },
+]
+
+# The same, from the dedicated server's console (no acting player).
+[[injection]]
+id = "console"
+target = "horizon_client::game::native_hooks::Game<'_>::native_perform_console_command"
+kind = "HEAD"
+helper = "console.rs"
+bindings = [
+    { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+    { name = "command", ty = "&str", value = "command" },
+    { name = "ran", ty = "&mut bool", value = "ran" },
+]
+
+# The window's agent runs a command straight through the vanilla dispatcher
+# (`owner_console_command` -> run_command), past native_perform_command: catch
+# Essentials' commands here too, so they work for the agent as well as for a
+# player's chat. A command none of these is is left for vanilla.
+[[injection]]
+id = "agent-command"
+target = "horizon_client::game::commands::Game<'_>::run_command"
+kind = "HEAD"
+cancellable = true
+helper = "command.rs"
+bindings = [
+    { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+    { name = "command", ty = "&str", value = "command" },
+]
